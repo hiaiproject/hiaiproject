@@ -1,19 +1,14 @@
 # _*_coding:utf-8_*_#
 
-import pandas as pd
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import time
-
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import random
-
-from sklearn.metrics import confusion_matrix
 from torch.utils.data import TensorDataset, DataLoader
-
+import MultilayerPerceptron as MLP
 
 np.random.seed(0)  # numpy random seed 설정
 torch.manual_seed(0)  # pytorch seed 설정
@@ -50,7 +45,7 @@ train_ds = TensorDataset(train_x, train_y)
 
 # 배치 사이즈 95 로 training set 미니배치
 # 그래프 개형이 우는거 해결하기위해 배치 사이즈 늘려볼것
-train_loader = DataLoader(train_ds, batch_size=95, shuffle=True)
+train_loader = DataLoader(train_ds, batch_size=85, shuffle=True)
 
 
 # --------- processing test data set ---------
@@ -67,29 +62,9 @@ test_y = test_y.long()
 test_ds = TensorDataset(test_x, test_y)
 
 # 배치 사이즈 652 로 test set 미니배치
-test_loader = DataLoader(test_ds, batch_size=652, shuffle=False)
+test_loader = DataLoader(test_ds, batch_size=44, shuffle=False)
 
-
-class MultilayerPerceptron(nn.Module):
-    def __init__(self, in_sz, out_sz, layers=[120, 60]):
-        super().__init__()
-        # linear regression
-        self.fc1 = nn.Linear(in_sz, layers[0])
-        self.fc2 = nn.Linear(layers[0], layers[1])
-        self.fc3 = nn.Linear(layers[1], out_sz)
-
-    def forward(self, X):
-        # ReLU로 Forward propogation 진행
-        X = F.relu(self.fc1(X))
-        X = F.relu(self.fc2(X))
-
-        # 마지막 layer는 softmax
-        X = self.fc3(X)
-
-        return F.log_softmax(X, dim=1)
-
-
-model = MultilayerPerceptron(784, 26)  # input feature 784, output feature 26으로 객체(학습 모델) 생성
+model = MLP.MultilayerPerceptron(784, 26)  # input feature 784, output feature 26으로 객체(학습 모델) 생성
 
 
 # loss = np.log(sum(np.exp(output))) - output[target[0]]  # CrossEntropyLoss 원형
@@ -99,12 +74,13 @@ model = MultilayerPerceptron(784, 26)  # input feature 784, output feature 26으
 criterion = nn.CrossEntropyLoss()
 
 # SGD(stochastic gradient descent) : 미분값이 0이되도록 음수(-)방향으로 최적화
-# Momentum : SGD의 단점인 지역 최소값에서 더이상 loss를 감소하지 않는것을 막기위해 관성을 주어 탈출하도록 보완
-# Adagrad : 최적의 해에 가까워질수록 learning rate를 감소시키는 최적화 함수
+# Momentum : SGD 의 단점인 지역 최소값에서 더이상 loss 를 감소하지 않는것을 막기위해 관성을 주어 탈출하도록 보완
+# Adagrad : 최적의 해에 가까워질수록 learning rate 를 감소시키는 최적화 함수
 # adam 은 SGD, Momentum, Adagrad 를 모두 합친 것
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)   # adam 가지고 parameters 를 학습하는데 learing rate는 1
 # 이 optimizer 가 parameter 들을 update
-# 출처 : https://velog.io/@reversesky/Optimizer%EC%9D%98-%EC%A2%85%EB%A5%98%EC%99%80-%EA%B0%84%EB%8B%A8%ED%95%9C-%EC%A0%95%EB%A6%AC
+# 출처 : https://velog.io/@reversesky/Optimizer%EC%9D%98-%EC%A2%85%EB%A5%98%EC%99%80
+# -%EA%B0%84%EB%8B%A8%ED%95%9C-%EC%A0%95%EB%A6%AC
 
 
 start_time = time.time()
@@ -121,14 +97,15 @@ test_losses = []
 train_correct = []
 test_correct = []
 
+
 for i in range(epochs):
     trn_corr = 0
     tst_corr = 0
+    model.train()  # 학습 모델이므로 Drop Out을 사용함(dropout = True)
 
     for b, (X_train, y_train) in enumerate(train_loader):  # train_lodaer ( 95개를 묶은 1개의 미니 배치한 데이터셋 ) 에 대해서 반복
         b += 1  # index 값
-
-        y_pred = model(X_train.view(95, -1))  # output 을 예측
+        y_pred = model(X_train.view(85, -1))  # output 을 예측
         # model.forward(X_train.view(95,-1)) 를 한것 (계산결과가 같음)
 
         loss = criterion(y_pred, y_train)  # CrossEntropyLoss 로 에러 게산
@@ -151,19 +128,20 @@ for i in range(epochs):
         # 이 세 친구는 항상 붙어다님
         # 출처 : https://www.youtube.com/watch?v=HgPWRqtg254&list=PLQ28Nx3M4JrhkqBVIXg-i5_CVVoS1UzAv&index=8
 
-        if b % 190 == 0:  # 정해진 index 마다 결과 출력
-            acc = trn_corr.item() * 95 / (95 * b)
+        if b % 180 == 0:  # 정해진 index 마다 결과 출력
+            acc = trn_corr.item() * 100 / (85 * b)
             print(f'epoch {i} batch {b} loss : {loss.item()} acc : {acc}')
 
     train_losses.append(loss)  # 95개의 미니배치한 각 data set 별 loss 를 저장
     train_correct.append(trn_corr)  # 95개의 미니배치한 각 data set 의 95개 중 예측을 맞춘 것의 개수를 누적해서 저장
-    # 결론적으로 27455개의 모든 input data 들에 대해 loss 와 올바르게 에측한 것의 개수를 저장. epoch마다 반복
+    # 결론적으로 27455개의 모든 input data 들에 대해 loss 와 올바르게 에측한 것의 개수를 저장. epoch 마다 반복
 
     # 위에서 95개씩 데이터셋을 다 돌고나서,
     # 훈련을 통해 얻어진 파라미터값들을 test data set 에 적용해 얼마만큼의 정확도가 나오는지 확인하는 코드
     with torch.no_grad():  # 파라미터를 학습 할 필요가 없으니 추적을 할 필요가 없고, 메모리 사용량을 절약하기위해 no_grad()로 wrapping
+        model.eval()  # 평가 모델이므로 Drop Out을 사용하지 않음(dropout = False)
         for b, (X_test, y_test) in enumerate(test_loader):
-            y_val = model(X_test.view(652, -1))
+            y_val = model(X_test.view(44, -1))
             predicted = torch.max(y_val.data, 1)[1]
             tst_corr += (predicted == y_test).sum()
 
@@ -190,7 +168,7 @@ train_acc = [t / 275 for t in train_correct]
 # (1~10까지 epoch 별로 27455개 데이터 중 맞춘 데이터 개수 / 27455) * 100
 
 test_acc = [t / 72 for t in test_correct]
-# 위와 같은 원리로 test set에 대해서는
+# 위와 같은 원리로 test set 에 대해서는
 # ( 7172 개 중 에측을 맞춘 데이터의 개수 / 7172 ) * 100
 
 # 정확도 추이 출력
@@ -198,5 +176,3 @@ plt.plot(train_acc, label='train acc')
 plt.plot(test_acc, label='test acc')
 plt.legend()
 plt.show()
-
-
