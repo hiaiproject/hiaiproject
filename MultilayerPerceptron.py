@@ -6,11 +6,11 @@ import torch.nn.functional as F
 
 
 class MultilayerPerceptron(nn.Module):
-    def __init__(self, in_sz, out_sz, layers=[512, 512, 512, 256, 51]):
+    def __init__(self, in_sz, out_sz, layers=[512, 512, 512, 51]):
         super().__init__()
         # linear regression & drop out
         self.fc1 = nn.Linear(in_sz, layers[0])
-        self.dropout1 = nn.Dropout(0.8)
+        self.dropout1 = nn.Dropout(0.3)
         self.bn1 = torch.nn.BatchNorm1d(512)
 
         self.fc2 = nn.Linear(layers[0], layers[1])
@@ -23,14 +23,10 @@ class MultilayerPerceptron(nn.Module):
 
         self.fc4 = nn.Linear(layers[2], layers[3])
         self.dropout4 = nn.Dropout(0.5)
-        self.bn4 = torch.nn.BatchNorm1d(256)
+        self.bn4 = torch.nn.BatchNorm1d(51)
 
-        self.fc5 = nn.Linear(layers[3], layers[4])
-        self.dropout5 = nn.Dropout(0.3)
-        self.bn5 = torch.nn.BatchNorm1d(51)
-
-        self.fc6 = nn.Linear(layers[4], out_sz)
-        self.bn6 = torch.nn.BatchNorm1d(out_sz)
+        self.fc5 = nn.Linear(layers[3], out_sz)
+        self.bn5 = torch.nn.BatchNorm1d(out_sz)
 
 
 
@@ -56,14 +52,10 @@ class MultilayerPerceptron(nn.Module):
         X = F.relu6(X)
         X = self.dropout4(X)
 
-        X = self.fc5(X)
-        X = self.bn5(X)
-        X = F.relu6(X)
-        X = self.dropout5(X)
 
         # 마지막 layer는 softmax
-        X = self.fc6(X)
-        X = self.bn6(X)
+        X = self.fc5(X)
+        X = self.bn5(X)
 
 
         return F.log_softmax(X, dim=1)
