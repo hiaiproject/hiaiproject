@@ -47,7 +47,6 @@ train_ds = TensorDataset(train_x, train_y)
 # 그래프 개형이 우는거 해결하기위해 배치 사이즈 늘려볼것
 train_loader = DataLoader(train_ds, batch_size=85, shuffle=True)
 
-
 # --------- processing test data set ---------
 
 # test_x, test_y 텐서에 각각 test 값 삽입
@@ -71,13 +70,16 @@ model = MLP.MultilayerPerceptron(784, 26)  # input feature 784, output feature 2
 # np.exp(y_pred[j]) -> 계산된 아웃풋의 각 원소에 exp 적용 (e^x)
 # sum(np.exp(y-pred[j]) -> 시그마
 # output[target[0]] -> 실제로 0번클래스에 속하는 데이터 셋과 현재 계산된 output 에 대해 에러 계산
+
 criterion = nn.CrossEntropyLoss()
+
 
 # SGD(stochastic gradient descent) : 미분값이 0이되도록 음수(-)방향으로 최적화
 # Momentum : SGD 의 단점인 지역 최소값에서 더이상 loss 를 감소하지 않는것을 막기위해 관성을 주어 탈출하도록 보완
 # Adagrad : 최적의 해에 가까워질수록 learning rate 를 감소시키는 최적화 함수
 # adam 은 SGD, Momentum, Adagrad 를 모두 합친 것
-optimizer = torch.optim.Adam(model.parameters(), lr=0.001)   # adam 가지고 parameters 를 학습하는데 learing rate는 1
+# optimizer = torch.optim.Adam(model.parameters(), lr=0.01)   # adam 가지고 parameters 를 학습하는데 learing rate는 1
+optimizer = torch.optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-4)   # Regularization
 # 이 optimizer 가 parameter 들을 update
 # 출처 : https://velog.io/@reversesky/Optimizer%EC%9D%98-%EC%A2%85%EB%A5%98%EC%99%80
 # -%EA%B0%84%EB%8B%A8%ED%95%9C-%EC%A0%95%EB%A6%AC
@@ -86,7 +88,7 @@ optimizer = torch.optim.Adam(model.parameters(), lr=0.001)   # adam 가지고 pa
 start_time = time.time()
 
 # training
-epochs = 10
+epochs = 30
 # 27455개 training data 에서
 # 배치사이즈가 95이면 27455/95 = 289번 가중치 업데이트
 # 95개를 묶어서 학습하고 가중치 업데이트 -> 289 번 반복
@@ -101,9 +103,10 @@ test_correct = []
 for i in range(epochs):
     trn_corr = 0
     tst_corr = 0
-    model.train()  # 학습 모델이므로 Drop Out을 사용함(dropout = True)
 
+    model.train()  # 학습 모델이므로 Drop Out을 사용함(dropout = True)
     for b, (X_train, y_train) in enumerate(train_loader):  # train_lodaer ( 95개를 묶은 1개의 미니 배치한 데이터셋 ) 에 대해서 반복
+
         b += 1  # index 값
         y_pred = model(X_train.view(85, -1))  # output 을 예측
         # model.forward(X_train.view(95,-1)) 를 한것 (계산결과가 같음)
